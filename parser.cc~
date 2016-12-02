@@ -1,0 +1,278 @@
+#include "parser.h"
+#include <cstring>
+
+const string ops[] = {"ADD", "SUB", "MULT", "DIV",
+
+		      "ISEQ", "ISNE", "ISLT", "ISLE", "ISGT", "ISGE",
+
+		      "AND", "OR",
+
+		      "PUSHL", "PUSHV", "STORE",
+
+		      "JUMP", "JUMPF", "JUMPT", "CALL", "RET",
+
+		      "PRINTF",
+
+		      "LABEL", "SEQ" };
+
+
+Parser::Parser(Lexer& lexerx, ostream& outx): lexer(lexerx), out(outx), lindex(1), tindex(1) {
+  token = lexer.nextToken();
+}
+
+Parser::~Parser() {
+}
+
+void Parser::error(string message)
+{
+  cerr << message << " Found " << token.getLexeme() << " at line " << token.getLine() << " position " << token.getPos() << endl;
+  exit(1);
+}
+
+void Parser::check(int tokenType, string message) {
+  if (token.getType() != tokenType)
+    error(message);
+}
+
+Parser::TreeNode* Parser::factor()  
+{
+  TreeNode* node;
+  if (token.getType()== Token::LPAREN)
+    {
+      token = lexer.nextToken();
+      node = expression();
+      check(Token::RPAREN,"Expecting )");
+      token = lexer.nextToken();
+    }
+  if (token.getType() == Token::INTLIT)
+    {
+      node = new TreeNode(Parser::PUSHL,token.getLexeme());
+    }
+  if (token.getType() == Token::IDENT)
+    {
+      node = new TreeNode(Parser::PUSHV, token.getLexeme());
+    }
+  token = lexer.nextToken();
+  return node;
+}
+
+Parser::TreeNode* Parser::term()
+{
+  TreeNode* termNode = factor();
+  TreeNode* factorNode;
+ 
+  while((token.getType() == Token::TIMES || token.getType() == Token::DIVIDE))
+    {
+      int tokenType = token.getType();
+      token = lexer.nextToken();
+      factorNode = factor();
+
+      Operation op;
+      
+      switch(tokenType)
+	{
+	case Token:: TIMES: op = Parser::MULT;
+	  break;
+	  
+	case Token::DIVIDE: op = Parser::DIV;
+	  break;
+	}
+      
+      termNode = new TreeNode(op, termNode, factorNode);
+      tokenType = token.getType();
+    }
+  return termNode;
+}
+
+Parser::TreeNode* Parser::expression()    
+{
+  TreeNode* expressionNode = term();
+  TreeNode* termNode;
+
+  while ((token.getType() == Token:: PLUS || token.getType() == Token:: MINUS))
+    {
+      int tokenType = token.getType();
+      token = lexer.nextToken();
+      termNode = term();
+
+      Operation op;
+
+      switch(tokenType)
+	{
+	case Token::PLUS: op = Parser::ADD;
+	break;
+
+	case Token::MINUS: op = Parser::SUB;
+	break;
+	}
+      expressionNode = new TreeNode(op, expressionNode, termNode);
+      tokenType = token.getType();
+    }
+  return expressionNode;
+
+}
+
+Parser::TreeNode* Parser::relationalExpression()
+{
+  TreeNode* node = expression();
+ 
+  if(token.getType() == Token :: EQ)
+    {
+      node = new TreeNode(Parser::ISEQ,token.getLexeme());
+    }
+  if(token.getType() == Token :: LT)
+    {
+      node = new TreeNode(Parser::ISLT, token.getLexeme());
+    }
+  if(token.getType() == Token :: LE)
+    {
+      node = new TreeNode(Parser::ISLE, token.getLexeme());
+    }
+  if(token.getType() == Token :: GT)
+    {
+      node = new TreeNode(Parser::ISGT, token.getLexeme());
+    }
+  if(token.getType() == Token::GE)
+    {
+      node = new TreeNode(Parser::ISGE, token.getLexeme());
+    }
+  if(token.getType() == Token :: NE)
+    {
+      node = new TreeNode(Parser::ISNE, token.getLexeme());
+    }
+  token = lexer.nextToken();
+  return node;
+}
+
+Parser::TreeNode* Parser::logicalExpression()
+{
+  TreeNode* logicalNode = relationalExpression();
+  TreeNode* relationalNode;
+
+  while ((token.getType() == Token :: AND) || (token.getType() == Token:: OR))
+    {
+      int tokenType = token.getType();
+      token = lexer.nextToken();
+      relationalNode = relationalExpression();
+
+      Operation op;
+
+      switch(tokenType)
+	{
+	case Token::AND: op =Parser:: AND;
+	break;
+
+	case Token::OR: op =Parser:: OR;
+	break;
+	}
+      logicalNode = new TreeNode(op, logicalNode, relationalNode);
+      tokenType = token.getType();
+    }
+  return logicalNode;
+}
+
+Parser::TreeNode* Parser::ifStatement() 
+{
+  string l1 = makeLabel();
+  string l2 = makeLabel();
+
+  check(Token::IF, "Expecting IF");
+  token = lexer.nextToken();
+  check(Token::LPAREN, "Expecting (");
+  TreeNode* log = logicalExpression();
+  check(Token::RPAREN,"Expecting )");
+  TreeNode* ifblock = block();
+  TreeNode* label1 = new TreeNode(Parser::LABEL,l1);
+  TreeNode* label2 = new TreeNode(Parser::LABEL,l2);
+  TreeNode* jump1 = new TreeNode(Parser::JUMPF,l1);
+  TreeNode* sequence1 = new TreeNode(Parser::SEQ, log, jump1);
+  TreeNode* sequence2 = new TreeNode(Parser::SEQ, sequence1, ifblock);
+  check(Token::ELSE,"Expecting else");
+  TreeNode* elseblock = block();
+  TreeNode* jump2 = new TreeNode(Parser::JUMP, l2);
+  TreeNode* sequence3 = new TreeNode(Parser::SEQ, sequence2, jump2);
+  TreeNode* sequence4 = new TreeNode(Parser::SEQ, sequence3, label1);
+  TreeNode* sequence5 = new TreeNode(Parser::SEQ, sequence4, elseblock);
+  TreeNode* sequence6 = new TreeNode(Parser::SEQ, sequence5, label2);
+  return sequence6;
+
+}
+
+Parser :: TreeNode* Parser:: block()
+{
+  TreeNode* node;
+  check(Token::LBRACE,"Expecting {");
+  token = lexer.nextToken();
+
+  if(token.getType()==Token::RBRACE)
+    {
+      return new TreeNode(Parser::SEQ, NULL, NULL);
+    }
+  node = statement();
+  while(token.getType() != Token::RBRACE)
+    {
+      node = new TreeNode(Parser::SEQ,node, statement());
+    }
+  return node;
+
+}
+
+
+Parser::TreeNode* Parser:: whileStatement()
+{
+      string l1 = makeLabel();
+      string l2 = makeLabel();
+      check(Token::WHILE, "Expected WHILE");
+      token = lexer.nextToken();
+      check(Token::LPAREN, "Expected (");
+      TreeNode* log = logicalExpression();
+      check(Token::RPAREN, "Expecting )");
+      TreeNode* block1 = block();
+      TreeNode* label1 = new TreeNode(Parser::LABEL,l1);
+      TreeNode* label2 = new TreeNode(Parser::LABEL,l2);
+      TreeNode* sequence1 = new TreeNode(Parser::SEQ,label1, log);
+      TreeNode* jump1 = new TreeNode(Parser::JUMPF,l2);
+      TreeNode* jump2 = new TreeNode(Parser::JUMP,l1);
+      TreeNode* sequence2 = new TreeNode(Parser::SEQ,sequence1, jump1);
+      TreeNode* sequence3 = new TreeNode(Parser::SEQ,sequence2,block1);
+      TreeNode* sequence4 = new TreeNode(Parser::SEQ,sequence3,jump2);
+      TreeNode* sequence5 = new TreeNode(Parser::SEQ,sequence4,label2);
+      token = lexer.nextToken();
+      return sequence5;
+}
+
+Parser::TreeNode* Parser:: assignStatement() 
+{
+  TreeNode* node;
+  check(Token::IDENT, "Expecting IDENT");
+  token = lexer.nextToken();
+  check(Token::ASSIGN, "Expecting =");
+  token = lexer.nextToken();
+  node = logicalExpression();
+  check(Token::SEMICOLON, "Expecting ;");
+  token = lexer.nextToken();
+  return node;
+}
+Parser::TreeNode* Parser:: statement() 
+{
+  TreeNode* node;
+  if(token.getType() == Token::WHILE)
+    {
+      node = whileStatement();
+    }
+  else  if(token.getType() == Token ::ASSIGN)
+    {
+      node = assignStatement();
+    }
+  else  if(token.getType() == Token :: IF)
+    {
+      node = ifStatement();
+    }
+  else
+    {
+      error("Expecting Statement");
+    }
+  return node;
+
+}
+

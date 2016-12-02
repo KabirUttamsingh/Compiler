@@ -1,8 +1,8 @@
 #ifndef PARSER_H
 #define PARSER_H
+
 #include "token.h"
 #include "lexer.h"
-#include "symboltable.h"
 #include <iostream>
 #include <string>
 #include <cstring>
@@ -22,7 +22,7 @@ private:
     PUSHL, PUSHV, STORE, // Value Transfer Instructions
     JUMP, JUMPF, JUMPT, CALL, RET, // Location Transfer Instructions
     PRINTF, // Misc
-    LABEL, SEQ, FUNC, PARAM // Pseudo Operations
+    LABEL, SEQ // Pseudo Operations
   };
   
 public:  
@@ -34,7 +34,7 @@ public:
     string val; // Variable name or jump label
     TreeNode *leftChild;
     TreeNode *rightChild;
-    Symboltable table;
+
     // Utility function used by constructors
     void init(Operation opx, string valx, TreeNode *leftChildx, TreeNode *rightChildx) {
       op = opx;
@@ -60,12 +60,12 @@ public:
       init(op, "", leftChild, rightChild);
     }
 
-    static string toString(TreeNode *node) {
+    static string toString0(TreeNode *node) {
       return toString0(node, 0);
     }
     
-    static string toString0(TreeNode *node, int spaces) {
-      static string blanks ="                                        ";
+    static string toString(TreeNode *node, int spaces) {
+      static string blanks = "                                        ";
       string left = "";
       string right = "";
       bool isLeaf = true;
@@ -95,23 +95,15 @@ private:
   ostream& out;
   int lindex;
   int tindex;
-  int jindex;
-  Symboltable table;
+  
   string itos(int i) { stringstream ss; ss << i; string res = ss.str(); return res;}
   string makeLabel() { string tmp = "L"; stringstream ss; ss << ++lindex; string res = ss.str(); tmp = tmp + res; return tmp;}
-  string JmakeLabel() { string tmp = "J"; stringstream ss; ss << ++jindex; string res = ss.str(); tmp = tmp + res; return tmp;}
-  static const string ops[];
-  //  string vars[100];
-  // int vindex;
+
+  static const string ops[];  
   void error(string message);
   void check(int tokenType, string message);
-  //  string currentFunc;
-  // int nfmts;
-  // string fmts[100];
-  // string fmt;
-  // int nparams;
+  
  public:
- 
   TreeNode* funcall(string functionName);
   TreeNode* factor();
   TreeNode* term();
@@ -120,7 +112,7 @@ private:
   TreeNode* logicalExpression();
   TreeNode* assignmentExpression();
   TreeNode* returnStatement();
-  //  TreeNode* printfStatement();
+  TreeNode* printfStatement();
   TreeNode* whileStatement();
   TreeNode* ifStatement();
   TreeNode* assignStatement();
@@ -131,13 +123,8 @@ private:
   TreeNode* parameterdefs();
   TreeNode* function();
   TreeNode* compilationunit();  
-  TreeNode* printfStatement();
-  void vardefs(TreeNode *node);
-  void genasm(TreeNode *node);
-  void emit(string a);
-  void  genRelational(string a);
-  void geninst(TreeNode *node);
-  bool isNew(string a);
+  
+    
   Parser(Lexer& lexer, ostream& out);
   ~Parser(); 
 

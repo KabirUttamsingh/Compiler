@@ -151,7 +151,7 @@ Token Lexer :: nextToken()
 	      break;
 	    }
 	}
-      for(int i =0; i <31; i++)
+      for(int i =3; i <22; i++)
 	{
 	  if(lexer.compare(array[i])==0)
 	    {
@@ -177,7 +177,8 @@ Token Lexer :: nextToken()
     }
   if(ch== '#')
     {
-      exit(1);
+      lexer +=ch;
+      return Token(Token::ENDOFFILE, lexer, line1, pos1);
     }
   
   ch = nextChar();

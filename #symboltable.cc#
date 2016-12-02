@@ -13,7 +13,7 @@
 
 string itos(int i) { stringstream ss; ss << i; string res = ss.str(); return res;}
 
-Symboltable:: Symboltable(): index(0)
+Symboltable:: Symboltable(): index(1)
 {
 
 }
@@ -27,10 +27,10 @@ string Symboltable:: getUniqueSymbol(string sym)
 {
   for(int i = table.getTos(); i >= 0; i--)
   {
-      HashTable& temp = table[i];
+      HashTable* temp = table[i];
 	if (temp.inTable(sym))
 	  {
-	    return temp[sym];
+	    return temp.get(sym);
           }
    }
     
