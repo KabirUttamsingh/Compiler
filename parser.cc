@@ -229,7 +229,7 @@ Parser::TreeNode* Parser::ifStatement()
   table.enterScope();
   TreeNode* ifblock = block();
   table.exitScope();
-    token = lexer.nextToken();
+  token = lexer.nextToken();
   log = new TreeNode(Parser::SEQ, log, ifblock);
   TreeNode* label1 = new TreeNode(Parser::LABEL,l1);
   TreeNode* label2 = new TreeNode(Parser::LABEL,l2);
@@ -550,8 +550,10 @@ Parser::TreeNode* Parser:: function()
   token = lexer.nextToken();
   return node;
 }
+
 string vars[100];
 int vin;
+
 void Parser:: vardefs(TreeNode *node)
 {
   if(node == NULL)
@@ -565,11 +567,12 @@ void Parser:: vardefs(TreeNode *node)
     {
       if(isNew(node->val))
 	{
-      vars[vin] = node->val;
-      vin++;
-    }
+	  vars[vin] = node->val;
+	  vin++;
+	}
     }
 }
+
 bool Parser:: isNew(string a)
 {
   
